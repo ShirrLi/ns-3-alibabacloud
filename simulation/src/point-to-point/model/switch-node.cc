@@ -12,8 +12,11 @@
 #include "ns3/int-header.h"
 #include "ns3/simulator.h"
 #include <cmath>
+#include <random>
 
 namespace ns3 {
+
+uint32_t SwitchNode::rps_seed = 42;
 
 TypeId SwitchNode::GetTypeId (void)
 {
@@ -29,6 +32,11 @@ TypeId SwitchNode::GetTypeId (void)
 			"CC mode.",
 			UintegerValue(0),
 			MakeUintegerAccessor(&SwitchNode::m_ccMode),
+			MakeUintegerChecker<uint32_t>())
+	.AddAttribute("RouteMode",
+			"Route mode.",
+			UintegerValue(0),
+			MakeUintegerAccessor(&SwitchNode::m_routeMode),
 			MakeUintegerChecker<uint32_t>())
 	.AddAttribute("AckHighPrio",
 			"Set high priority for ACK/NACK or not",
@@ -60,7 +68,7 @@ SwitchNode::SwitchNode(){
 		m_u[i] = 0;
 }
 
-int SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader &ch){
+int SwitchNode::GetOutDevEcmp(Ptr<const Packet> p, CustomHeader &ch){
 	// look up entries
 	auto entry = m_rtTable.find(ch.dip);
 
@@ -89,6 +97,46 @@ int SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader &ch){
 	return nexthops[idx];
 }
 
+uint16_t generateRandomUInt16() {
+	std::mt19937 gen(SwitchNode::rps_seed++);
+    std::uniform_int_distribution<uint16_t> dis(0, UINT16_MAX); // define the range
+    return dis(gen); // generate random numbers
+}
+
+int SwitchNode::GetOutDevAR(Ptr<const Packet> p, CustomHeader &ch){
+ 	// look up entries
+ 	auto entry = m_rtTable.find(ch.dip);
+ 
+ 	// no matching entry
+ 	if (entry == m_rtTable.end())
+ 		return -1;
+ 
+ 	// entry found
+ 	auto &nexthops = entry->second;
+ 
+	uint32_t idx = 0;
+
+	// choose the port with the least number of bytes in priority queue
+	std::vector<uint32_t> minBytesPorts;
+	uint32_t minBytes = UINT32_MAX;
+	// first find the ports with the minimum number of bytes
+	for (uint32_t i = 0; i < nexthops.size(); i++){
+		if (m_mmu->egress_bytes[nexthops[i]][ch.udp.pg] < minBytes){
+			minBytes = m_mmu->egress_bytes[nexthops[i]][ch.udp.pg];
+			minBytesPorts.clear();
+			minBytesPorts.push_back(nexthops[i]);
+		} else if (m_mmu->egress_bytes[nexthops[i]][ch.udp.pg] == minBytes){
+			minBytesPorts.push_back(nexthops[i]);
+		}
+	}
+	// then randomly choose one from the ports with the minimum number of bytes
+	idx = 0;
+	if (minBytesPorts.size() > 1){
+		idx = generateRandomUInt16() % minBytesPorts.size();
+	}
+	return minBytesPorts[idx];
+}
+
 void SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex){
 	Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
 	if (m_mmu->CheckShouldPause(inDev, qIndex)){
@@ -105,7 +153,14 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex){
 }
 
 void SwitchNode::SendToDev(Ptr<Packet>p, CustomHeader &ch){
-	int idx = GetOutDev(p, ch);
+	int idx;
+ 	if (m_routeMode == 0)
+ 		idx = GetOutDevEcmp(p, ch);
+ 	else if (m_routeMode == 1)
+ 		idx = GetOutDevAR(p, ch);
+ 	else
+ 		NS_ASSERT_MSG(false, "Unknown route mode");
+
 	if (idx >= 0){
 		NS_ASSERT_MSG(m_devices[idx]->IsLinkUp(), "The routing table look up should return link that is up");
 

@@ -27,6 +27,8 @@ class SwitchNode : public Node{
 	uint64_t m_lastPktTs[pCnt]; // ns
 	double m_u[pCnt];
 
+	uint32_t m_routeMode;
+
 protected:
 	bool m_ecnEnabled;
 	uint32_t m_ccMode;
@@ -35,14 +37,15 @@ protected:
 	uint32_t m_ackHighPrio; // set high priority for ACK/NACK
 
 private:
-	int GetOutDev(Ptr<const Packet>, CustomHeader &ch);
+	int GetOutDevEcmp(Ptr<const Packet>, CustomHeader &ch);
+	int GetOutDevAR(Ptr<const Packet>, CustomHeader &ch);
 	void SendToDev(Ptr<Packet>p, CustomHeader &ch);
 	static uint32_t EcmpHash(const uint8_t* key, size_t len, uint32_t seed);
 	void CheckAndSendPfc(uint32_t inDev, uint32_t qIndex);
 	void CheckAndSendResume(uint32_t inDev, uint32_t qIndex);
 public:
 	Ptr<SwitchMmu> m_mmu;
-
+	static uint32_t rps_seed;
 	static TypeId GetTypeId (void);
 	SwitchNode();
 	void SetEcmpSeed(uint32_t seed);
