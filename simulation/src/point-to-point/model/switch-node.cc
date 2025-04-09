@@ -419,7 +419,9 @@ void SwitchNode::PrintSwitchBw(FILE* bw_output, uint32_t bw_mon_interval){
 		}
 		double bw = (m_txBytes[i] - last_txBytes[i]) * 8 * 1e6 / bw_mon_interval; // bit/s
 		bw = bw*1.0 / 1e9; // Gbps
-		fprintf(bw_output, "%lu, %u, %u, %f\n", Simulator::Now().GetTimeStep(), m_id, i, bw);
+		float port_bw_util = bw * 1.0 / m_link_bw[i];
+		fprintf(bw_output, "%lu, %u, %u, %f, %f\n", Simulator::Now().GetTimeStep(), m_id, i, bw, port_bw_util);
+		// fprintf(bw_output, "%lu, %u, %u, %lu, %lu, %u\n", Simulator::Now().GetTimeStep(), m_id, i, m_txBytes[i], last_txBytes[i], bw_mon_interval);
 		fflush(bw_output);
 		last_txBytes[i] = m_txBytes[i];
 	}	

@@ -61,6 +61,7 @@ public:
 	// for monitor
 	uint64_t last_txBytes[pCnt]; // last sampling of the counter of tx bytes
 	uint64_t last_port_qlen[pCnt]; // last sampling of the port length
+	uint64_t m_link_bw[pCnt];
 	
 	/**
 	 * outoput format:
