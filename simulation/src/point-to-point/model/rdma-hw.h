@@ -57,6 +57,7 @@ public:
     SendCompleteCallback m_sendCompleteCallback;
 
     // for monitor
+	std::vector<double> link_bw; // <port_id, link_bw>
 	std::vector<uint64_t> tx_bytes; // <port_id, tx_bytes>
 	std::unordered_map<uint64_t, uint32_t> qp_cnp; // key of qp ---> received cnp number
 	std::vector<uint64_t> last_tx_bytes; // last sampling value <port_id, tx_bytes>

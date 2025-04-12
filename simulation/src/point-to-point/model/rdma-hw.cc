@@ -769,7 +769,11 @@ void RdmaHw::PrintHostBW(FILE* bw_output, uint32_t bw_mon_interval){
 		}
 		double bw = (tx_bytes[i] - last_tx_bytes[i]) * 8 * 1e6 / (bw_mon_interval); // bit/s
 		bw = bw*1.0 / 1e9; // Gbps
-		fprintf(bw_output, "%lu, %u, %u, %f\n", Simulator::Now().GetTimeStep(), m_node->GetId(), i, bw);
+		double port_bw_util = bw * 1.0 / link_bw[i];
+		// add factor for correction, reason still unknown
+		port_bw_util = port_bw_util / 100;
+ 		fprintf(bw_output, "%lu, %u, %u, %lf, %lf\n", Simulator::Now().GetTimeStep(), m_node->GetId(), i, bw, port_bw_util);
+		// fprintf(bw_output, "%lu, %u, %u, %f\n", Simulator::Now().GetTimeStep(), m_node->GetId(), i, bw);
 		fflush(bw_output);
 		last_tx_bytes[i] = tx_bytes[i];
 	}
