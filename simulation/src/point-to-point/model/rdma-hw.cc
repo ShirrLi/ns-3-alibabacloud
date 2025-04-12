@@ -243,6 +243,7 @@ uint32_t ip_to_node_id(Ipv4Address ip) { return (ip.Get() >> 8) & 0xffff; }
 uint32_t RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp){
 	uint32_t src = qp->m_src;
 	uint32_t dst = qp->m_dest;
+	#ifdef ENABLE_ROUTING_NVSWITCH
 	if(src / m_gpus_per_server == dst / m_gpus_per_server || m_rtTable_nxthop_nvswitch.count(qp->dip.Get()) != 0){ // src and dst are in the same server, communicate through nvswitch
 		auto &v = m_rtTable_nxthop_nvswitch[qp->dip.Get()];
 		if (v.size() > 0){
@@ -250,7 +251,9 @@ uint32_t RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp){
 		}else{
 			NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
 		}
-	}else{ // src and dst don't in the same server, communicate through swicth
+	}else
+	#endif
+	{ // src and dst don't in the same server, communicate through swicth
 		auto &v = m_rtTable[qp->dip.Get()];
 		if (v.size() > 0){
 			return v[qp->GetHash() % v.size()];
